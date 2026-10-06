@@ -14,7 +14,13 @@ INVALID_STATES := 1234567111111 123456711111111 02345671111111 82345671111111 \
 
 .PHONY: all check prove clean indent
 
-all: solver mini
+all: solver mini solver_opt utils
+
+utils: utils.c
+	$(CC) $(CFLAGS) $< -o $@
+
+solver_opt: solver_opt.c
+	$(CC) $(CFLAGS) $< -o $@
 
 solver: solver.c
 	$(CC) $(CFLAGS) $< -o $@

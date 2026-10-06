@@ -9,6 +9,7 @@ AllowShortLoopsOnASingleLine: false
 DerivePointerAlignment: false
 PointerAlignment: Right
 SpaceAfterCStyleCast: true
+ColumnLimit: 160
 TabWidth: 4
 UseTab: Never
 IndentWidth: 4
