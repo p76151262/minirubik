@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
 enum { CUBIES = 7, PERMUTATIONS = 5040, ORIENTATIONS = 729, STATES = PERMUTATIONS * ORIENTATIONS, MOVES = 9 };
 
@@ -30,14 +31,6 @@ static state_t quarter_turn(state_t state, uint8_t face)
     return result;
 }
 
-static state_t apply_move(state_t state, uint8_t move)
-{
-    uint8_t turns = (uint8_t) (move % 3U + 1U);
-    for (uint8_t i = 0; i < turns; ++i)
-        state = quarter_turn(state, (uint8_t) (move / 3U));
-    return state;
-}
-
 static uint32_t rank_state(const state_t *state)
 {
     uint32_t p = 0, o = 0;
@@ -63,7 +56,7 @@ static void unrank_state(uint32_t rank, state_t *state)
         uint8_t q = (uint8_t) (p / f);
         p %= f;
         state->p[i] = available[q];
-        for (uint8_t j = q; j + 1U < CUBIES - i; ++j)
+        for (uint8_t j = q; j + 1 < CUBIES - i; ++j)
             available[j] = available[j + 1U];
         if (i < 5)
             f /= 6U - i;
@@ -95,15 +88,75 @@ int main(void)
         }
     }
 
-    printf("#include <stdint.h>\n");
-    printf("static const uint32_t times_729[5040] = {");
-    for (int i = 0; i < 5040; i++) {
-        printf("%d", i * 729);
-        if (i < 5039) {
-            printf(", ");
+    /*
+    heuristics for IDA*
+    h_p[r] stores how many moves for rank_p==r to restore to rank_p==0 (solved state)
+    */
+    uint8_t h_p[PERMUTATIONS], h_o[ORIENTATIONS];
+    memset(h_p, 0xFF, sizeof(h_p));
+    memset(h_o, 0xFF, sizeof(h_o));
+    h_p[0] = 0;
+    h_o[0] = 0;
+
+    uint8_t depth = 0;
+    uint16_t visited_p = 1;
+    while (visited_p < PERMUTATIONS) {
+        // a single BFS level
+        for (uint16_t rank_p = 0; rank_p < PERMUTATIONS; rank_p++) {
+            if (h_p[rank_p] == depth) {
+                for (uint8_t face = 0; face <= 2; face++) {
+                    uint16_t next_rank_p = rank_p;
+
+                    for (uint8_t turn = 0; turn <= 2; turn++) {
+                        next_rank_p = permutation[face][next_rank_p];
+
+                        if (h_p[next_rank_p] == 0xFF) {  // unvisited
+                            h_p[next_rank_p] = depth + 1;
+                            visited_p++;
+                        }
+                    }
+                }
+            }
         }
+        depth++;
     }
-    printf("};\n");
+
+    depth = 0;
+    uint16_t visited_o = 1;
+    while (visited_o < ORIENTATIONS) {
+        // a single BFS level
+        for (uint16_t rank_o = 0; rank_o < ORIENTATIONS; rank_o++) {
+            if (h_o[rank_o] == depth) {
+                for (uint8_t face = 0; face <= 2; face++) {
+                    uint16_t next_rank_o = rank_o;
+
+                    for (uint8_t turn = 0; turn <= 2; turn++) {
+                        next_rank_o = orientation[face][next_rank_o];
+
+                        if (h_o[next_rank_o] == 0xFF) {  // unvisited
+                            h_o[next_rank_o] = depth + 1;
+                            visited_o++;
+                        }
+                    }
+                }
+            }
+        }
+        depth++;
+    }
+
+    printf(
+        "#ifndef LUT_H\n"
+        "#define LUT_H\n"
+        "#include <stdint.h>\n\n");
+
+    // printf("static const uint32_t times_729[5040] = {");
+    // for (int i = 0; i < PERMUTATIONS; i++) {
+    //     printf("%d", i * ORIENTATIONS);
+    //     if (i < 5039) {
+    //         printf(", ");
+    //     }
+    // }
+    // printf("};\n");
 
     printf("static const uint16_t next_rank_p[3][5040] = {");
     for (size_t face = 0; face <= 2; face++) {
@@ -136,6 +189,28 @@ int main(void)
         }
     }
     printf("};\n");
+
+    printf("static const uint8_t h_p[5040] = {");
+    for (size_t i = 0; i < PERMUTATIONS; i++) {
+        printf("%d", h_p[i]);
+
+        if (i < PERMUTATIONS - 1) {
+            printf(", ");
+        }
+    }
+    printf("};\n");
+
+    printf("static const uint8_t h_o[729] = {");
+    for (size_t i = 0; i < ORIENTATIONS; i++) {
+        printf("%d", h_o[i]);
+
+        if (i < ORIENTATIONS - 1) {
+            printf(", ");
+        }
+    }
+    printf("};\n");
+
+    printf("\n#endif\n");
 
     return 0;
 }

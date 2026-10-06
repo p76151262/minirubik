@@ -5,3 +5,6 @@ solver
 mini
 solver_opt
 utils
+empty_c
+empty_s
+*.o

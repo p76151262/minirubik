@@ -1,5 +1,7 @@
 CC ?= cc
 CFLAGS ?= -O3 -std=c99 -Wall -Wextra -Wpedantic
+ASSEMBLER ?= as
+LINKER ?= ld
 FRAMA_C ?= frama-c
 CLANG_FORMAT := $(shell command -v clang-format-20 2>/dev/null || \
 	command -v clang-format 2>/dev/null)
@@ -12,9 +14,18 @@ VECTORS := tests/solutions.txt
 INVALID_STATES := 1234567111111 123456711111111 02345671111111 82345671111111 \
 	12345671111110 12345671111114 1234567111111a 11345671111111 12345671111112
 
-.PHONY: all check prove clean indent
+.PHONY: all check prove clean indent lut
 
-all: solver mini solver_opt utils
+all: solver mini solver_opt utils empty_c empty_s
+
+empty_s.o: empty.s
+	$(ASSEMBLER) $< -o $@
+
+empty_s: empty_s.o
+	$(LINKER) -s $< -o $@
+
+empty_c: empty.c
+	$(CC) $(CFLAGS) $< -o $@
 
 utils: utils.c
 	$(CC) $(CFLAGS) $< -o $@
@@ -99,5 +110,9 @@ endif
 		{ echo "error: clang-format version 20 required"; exit 1; }
 	$(CLANG_FORMAT) -i $(C_SOURCES)
 
+lut: utils
+	./$< &> lut.h
+	clang-format -style=file -i lut.h
+
 clean:
-	$(RM) solver mini
+	$(RM) solver mini solver_opt utils empty_c empty_s *.o
