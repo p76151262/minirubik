@@ -20,13 +20,17 @@ static const uint8_t twist[3][CUBIES] = {
     {0, 0, 0, 0, 0, 0, 0},
 };
 
+static const uint8_t o_plus_twist_mod3[5] = {0, 1, 2, 0, 1};
+
+// The three quarter-turns preserve the fixed front-upper-left corner.
 static state_t quarter_turn(state_t state, uint8_t face)
 {
     state_t result;
-    for (uint8_t i = 0; i < CUBIES; ++i) {
+    for (uint8_t i = 0; i < CUBIES; i++) {
         uint8_t from = source[face][i];
         result.p[i] = state.p[from];
-        result.o[i] = (uint8_t) ((state.o[from] + twist[face][i]) % 3U);
+        // state.o + twist: min 0 + 0 = 0, max 2 + 2 = 4
+        result.o[i] = o_plus_twist_mod3[state.o[from] + twist[face][i]];
     }
     return result;
 }
@@ -144,73 +148,137 @@ int main(void)
         depth++;
     }
 
-    printf(
-        "#ifndef LUT_H\n"
-        "#define LUT_H\n"
-        "#include <stdint.h>\n\n");
+    FILE *fptr = fopen("lut.h", "w");
 
-    // printf("static const uint32_t times_729[5040] = {");
-    // for (int i = 0; i < PERMUTATIONS; i++) {
-    //     printf("%d", i * ORIENTATIONS);
-    //     if (i < 5039) {
-    //         printf(", ");
-    //     }
-    // }
-    // printf("};\n");
+    if (!fptr) {
+        fprintf(stderr, "Failed to open file lut.h\n");
+        return 1;
+    }
 
-    printf("static const uint16_t next_rank_p[3][5040] = {");
+    fprintf(fptr,
+            "#ifndef LUT_H\n"
+            "#define LUT_H\n"
+            "#include <stdint.h>\n\n");
+
+    fprintf(fptr, "static const uint16_t next_rank_p[3][5040] = {");
     for (size_t face = 0; face <= 2; face++) {
-        printf("{");
+        fprintf(fptr, "{");
         for (size_t r = 0; r < PERMUTATIONS; r++) {
-            printf("%d", permutation[face][r]);
-            if (r < PERMUTATIONS - 1) {
-                printf(", ");
-            }
+            fprintf(fptr, "%d", permutation[face][r]);
+            if (r < PERMUTATIONS - 1)
+                fprintf(fptr, ", ");
         }
-        printf("}");
-        if (face < 2) {
-            printf(", ");
-        }
+        fprintf(fptr, "}");
+        if (face < 2)
+            fprintf(fptr, ", ");
     }
-    printf("};\n");
+    fprintf(fptr, "};\n");
 
-    printf("static const uint16_t next_rank_o[3][729] = {");
+    fprintf(fptr, "static const uint16_t next_rank_o[3][729] = {");
     for (size_t face = 0; face <= 2; face++) {
-        printf("{");
+        fprintf(fptr, "{");
         for (size_t r = 0; r < ORIENTATIONS; r++) {
-            printf("%d", orientation[face][r]);
-            if (r < ORIENTATIONS - 1) {
-                printf(", ");
-            }
+            fprintf(fptr, "%d", orientation[face][r]);
+            if (r < ORIENTATIONS - 1)
+                fprintf(fptr, ", ");
         }
-        printf("}");
-        if (face < 2) {
-            printf(", ");
-        }
+        fprintf(fptr, "}");
+        if (face < 2)
+            fprintf(fptr, ", ");
     }
-    printf("};\n");
+    fprintf(fptr, "};\n");
 
-    printf("static const uint8_t h_p[5040] = {");
+    fprintf(fptr, "static const uint8_t h_p[5040] = {");
     for (size_t i = 0; i < PERMUTATIONS; i++) {
-        printf("%d", h_p[i]);
+        fprintf(fptr, "%d", h_p[i]);
 
-        if (i < PERMUTATIONS - 1) {
-            printf(", ");
-        }
+        if (i < PERMUTATIONS - 1)
+            fprintf(fptr, ", ");
     }
-    printf("};\n");
+    fprintf(fptr, "};\n");
 
-    printf("static const uint8_t h_o[729] = {");
+    fprintf(fptr, "static const uint8_t h_o[729] = {");
     for (size_t i = 0; i < ORIENTATIONS; i++) {
-        printf("%d", h_o[i]);
+        fprintf(fptr, "%d", h_o[i]);
 
-        if (i < ORIENTATIONS - 1) {
-            printf(", ");
+        if (i < ORIENTATIONS - 1)
+            fprintf(fptr, ", ");
+    }
+    fprintf(fptr, "};\n");
+
+    fprintf(fptr, "\n#endif\n");
+    fclose(fptr);
+
+    fptr = fopen("lut.s", "w");
+
+    if (!fptr) {
+        fprintf(stderr, "Failed to open file lut.s\n");
+    }
+
+    fprintf(fptr, ".data\n\n");
+
+    fprintf(fptr, ".global next_rank_p\n");
+    fprintf(fptr, ".balign 4\n");
+    fprintf(fptr, "next_rank_p:\n");
+    for (size_t face = 0; face <= 2; face++) {
+        fprintf(fptr, "next_rank_p_f%zu:\n", face);  // face sub tag
+        for (size_t r = 0; r < PERMUTATIONS; r++) {
+            if (r % 16 == 0)
+                fprintf(fptr, "    .half ");  // uint16_t
+            fprintf(fptr, "%u", permutation[face][r]);
+            if (r % 16 == 15 || r == PERMUTATIONS - 1)
+                fprintf(fptr, "\n");
+            else
+                fprintf(fptr, ", ");
         }
     }
-    printf("};\n");
+    
+    fprintf(fptr, "\n");
+    fprintf(fptr, ".global next_rank_o\n");
+    fprintf(fptr, ".balign 4\n");
+    fprintf(fptr, "next_rank_o:\n");
+    for (size_t face = 0; face <= 2; face++) {
+        fprintf(fptr, "next_rank_o_f%zu:\n", face);  // face sub tag
+        for (size_t r = 0; r < ORIENTATIONS; r++) {
+            if (r % 16 == 0)
+                fprintf(fptr, "    .half ");  // uint16_t
+            fprintf(fptr, "%u", orientation[face][r]);
+            if (r % 16 == 15 || r == ORIENTATIONS - 1)
+                fprintf(fptr, "\n");
+            else
+                fprintf(fptr, ", ");
+        }
+    }
 
-    printf("\n#endif\n");
+    fprintf(fptr, "\n");
+    fprintf(fptr, ".global h_p\n");
+    fprintf(fptr, ".balign 4\n");
+    fprintf(fptr, "h_p:\n");
+    for (size_t i = 0; i < PERMUTATIONS; i++) {
+        if (i % 16 == 0)
+            fprintf(fptr, "    .byte ");  // uint8_t
+        fprintf(fptr, "%d", h_p[i]);
+        if (i % 16 == 15 || i == PERMUTATIONS - 1)
+            fprintf(fptr, "\n");
+        else
+            fprintf(fptr, ", ");
+    }
+
+    fprintf(fptr, "\n");
+    fprintf(fptr, ".global h_o\n");
+    fprintf(fptr, ".balign 4\n");
+    fprintf(fptr, "h_o:\n");
+    for (size_t i = 0; i < ORIENTATIONS; i++) {
+        if (i % 16 == 0)
+            fprintf(fptr, "    .byte ");  // uint8_t
+        fprintf(fptr, "%d", h_o[i]);
+        if (i % 16 == 15 || i == ORIENTATIONS - 1)
+            fprintf(fptr, "\n");
+        else
+            fprintf(fptr, ", ");
+    }
+
+    fclose(fptr);
 
     return 0;
 }

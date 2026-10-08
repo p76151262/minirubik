@@ -2,6 +2,8 @@ CC ?= cc
 CFLAGS ?= -O3 -std=c99 -Wall -Wextra -Wpedantic
 ASSEMBLER ?= as
 LINKER ?= ld
+RV32_AS ?= riscv32-unknown-elf-as
+RV32_LD ?= riscv32-unknown-elf-ld
 FRAMA_C ?= frama-c
 CLANG_FORMAT := $(shell command -v clang-format-20 2>/dev/null || \
 	command -v clang-format 2>/dev/null)
@@ -16,7 +18,7 @@ INVALID_STATES := 1234567111111 123456711111111 02345671111111 82345671111111 \
 
 .PHONY: all check prove clean indent lut
 
-all: solver mini solver_opt utils empty_c empty_s
+all: solver mini solver_opt solver_opt_rv32i.elf utils empty_c empty_s
 
 empty_s.o: empty.s
 	$(ASSEMBLER) $< -o $@
@@ -29,6 +31,15 @@ empty_c: empty.c
 
 utils: utils.c
 	$(CC) $(CFLAGS) $< -o $@
+
+lut_s.o: lut.s
+	$(RV32_AS) -march=rv32i -mabi=ilp32 -mno-relax $< -o $@
+
+solver_opt_s.o: solver_opt.s
+	$(RV32_AS) -march=rv32i -mabi=ilp32 -mno-relax $< -o $@
+
+solver_opt_rv32i.elf: solver_opt_s.o lut_s.o
+	$(RV32_LD) -m elf32lriscv -nostdlib --no-relax -s $^ -o $@
 
 solver_opt: solver_opt.c
 	$(CC) $(CFLAGS) $< -o $@
@@ -110,9 +121,9 @@ endif
 		{ echo "error: clang-format version 20 required"; exit 1; }
 	$(CLANG_FORMAT) -i $(C_SOURCES)
 
-lut: utils
-	./$< &> lut.h
+lut: utils utils
+	./$<
 	clang-format -style=file -i lut.h
 
 clean:
-	$(RM) solver mini solver_opt utils empty_c empty_s *.o
+	$(RM) solver mini solver_opt utils empty_c empty_s *.o *.elf

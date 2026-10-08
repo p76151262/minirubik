@@ -8,3 +8,7 @@ utils
 empty_c
 empty_s
 *.o
+massif.out.*
+temp.md
+*.su
+*.elf
