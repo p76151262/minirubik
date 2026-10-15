@@ -1488,13 +1488,35 @@ h_o:
     .byte 5, 5, 4, 5, 4, 5, 3, 5, 5
 
 state: .zero 14
-state_str: .string "25416373331111"
+state_str: .string "21345671111111"
 parsing_str: .string "Parsing state "
 invalid_input_str_0: .string "Input state "
 invalid_input_str_1: .string " is invalid!\n"
 rank_p_str: .string "rank_p = "
 rank_o_str: .string "rank_o = "
-solution_path: .zero 11
+ida_found_str:  .string "IDA*: found solution under bound "
+ida_fail_str:   .string "IDA*: failed to find solution under bound "
+solution_path:  .zero 11
+
+move_str0: .string "R"
+move_str1: .string "R2"
+move_str2: .string "R'"
+move_str3: .string "B"
+move_str4: .string "B2"
+move_str5: .string "B'"
+move_str6: .string "D"
+move_str7: .string "D2"
+move_str8: .string "D'"
+move_names:
+    .word move_str0
+    .word move_str1
+    .word move_str2
+    .word move_str3
+    .word move_str4
+    .word move_str5
+    .word move_str6
+    .word move_str7
+    .word move_str8
 
 # mv a6, a0
 # mv a0, t2
@@ -1511,24 +1533,23 @@ _start:
 
     # state parsed successfully
     jal rank_state
+    mv s0, a0   # s0 = start_p
+    mv s1, a1   # s1 = start_o
 
-    # print rank_p
-    mv t0, a0
     la a0, rank_p_str
     li a7, 4
     ecall
-    mv a0, t0
+    mv a0, s0   # print start_p
     li a7, 1
     ecall
     li a0, 10 # newline
     li a7, 11
     ecall
 
-    # print rank_o
     la a0, rank_o_str
     li a7, 4
     ecall
-    mv a0, a1
+    mv a0, s1   # print start_o
     li a7, 1
     ecall
     li a0, 10 # newline
@@ -1536,7 +1557,74 @@ _start:
     ecall
 
     jal print_state
+    
+    # debug
+    # la a0, solution_path
+    # li a7, 34
+    # ecall
+    # li a0, 10
+    # li a7, 11
+    # ecall
 
+    la t0, h_p
+    add t0, t0, s0
+    lbu s2, 0(t0)               # s2 = h_p[start_p]
+    la t0, h_o
+    add t0, t0, s1
+    lbu t0, 0(t0)               # t0 = h_o[start_o]
+    bgeu s2, t0, idfs_driver    # if h_p[start_p] > h_o[start_o], ok
+    mv s2, t0                   # otherwise, swap
+idfs_driver:
+    # s2 = start_bound = h = max(h_p[start_p], h_o[start_o])
+    li s3, 12
+idfs_driver_L0:
+    bgeu s2, s3, _start_L0  # if bound <= 11, loop
+    mv a0, s0
+    mv a1, s1
+    mv a2, s2
+    jal idfs
+    bnez a0, idfs_driver_L1     # dfs return 1, break
+    la a0, ida_fail_str
+    li a7, 4
+    ecall
+    mv a0, s2
+    li a7, 1
+    ecall
+    li a0, 10
+    li a7, 11
+    ecall
+    addi s2, s2, 1              # bound++
+    j idfs_driver_L0
+idfs_driver_L1:
+    # print solution
+    la a0, ida_found_str
+    li a7, 4
+    ecall
+    mv a0, s2
+    li a7, 1
+    ecall
+    li a0, 10
+    li a7, 11
+    ecall
+    li t0, 0        # i = 0
+    la t1, solution_path
+    la t2, move_names
+idfs_driver_L2:
+    bgeu t0, s2, _start_L0  # i < bound
+    add a0, t1, t0
+    lbu a0, 0(a0)   # a0 = solution_path[i]
+    slli a0, a0, 2  # a0 *= 4
+    add a0, t2, a0
+    lw a0, 0(a0)    # a0 = move_names[solution_path[i]]
+    li a7, 4
+    ecall
+    addi t0, t0, 1  # i++
+    li a0, 32       # space
+    li a7, 11
+    ecall
+    j idfs_driver_L2
+
+_start_L0:
     # exit with 0
     li a0, 0
     j exit
@@ -1739,12 +1827,13 @@ idfs_face_loop:
     la a6, next_rank_p
     la a7, next_rank_o
     beqz t0, idfs_L1    # face == 0, addresses are ok
-    addi a6, a6, 10080  # 5040*2
-    addi a7, a7, 1458   # 729*2
-    li t2, 1
-    beq t0, t2, idfs_L1 # if face == 1, only one addition is needed
-    addi a6, a6, 10080  # 5040*2
-    addi a7, a7, 1458   # 729*2
+    li t2, 10080
+    add a6, a6, t2      # + 5040*2
+    addi a7, a7, 1458   # + 729*2
+    li t3, 1
+    beq t0, t3, idfs_L1 # if face == 1, only one addition is needed
+    add a6, a6, t2      # + 5040*2
+    addi a7, a7, 1458   # + 729*2
 idfs_L1:
     li t2, 0 # t2 = turn = 0
 
@@ -1762,15 +1851,80 @@ idfs_turn_loop:
     lbu t3, 0(t3)           # t3 = h_p[next_p]
     add t4, t6, a5     
     lbu t4, 0(t4)           # t4 = h_o[next_o]
-    bgeu t3, t4, idfs_L2    # if t3 >= t4, ok, otherwise swap
-    mv t3, t4
+    bgeu t3, t4, idfs_L2    # if t3 >= t4, ok
+    mv t3, t4               # otherwise swap
 idfs_L2:
-    addi t4, t3, 1
+    add t3, t3, a3
+    addi t3, t3, 1  # t3 = depth + 1 + h
+    bleu t3, a2, idfs_resume_turn # pruning 1: depth + 1 + h <= bound
+
+    or t3, a4, a5
+    bnez t3, idfs_L3 # next_p == 0 && next_o == 0 -> solution found
+
+    addi t3, t3, 0  # i = 0
+    la t6, solution_path
+idfs_sol_loop:
+    addi t4, sp, 48 # t4 = face_stk
+    add t5, t4, t3
+    lbu t5, 0(t5)   # t5 = face_stk[i]
+    slli t4, t5, 1  # t4 = face_stk[i] << 1
+    add t4, t4, t5  # t4 = (face_stk[i] << 1) + face_stk[i]
+    addi t5, sp, 60
+    add t5, t5, t3
+    lbu t5, 0(t5)   # t5 = turn_stk[i]
+    add t4, t4, t5  # t4 = (face_stk[i] << 1) + face_stk[i] + turn_stk[i]
+    add t5, t6, t3
+    sb t4, 0(t5)    # solution_path[i] = t4
+
+    addi t3, t3, 1  # i++
+    bleu t3, a3, idfs_sol_loop
+    li a0, 1    # return 1
+    ret
+idfs_L3:
+    # 0(sp) - 23(sp): p_stk
+    # 24(sp) - 47(sp): o_stk
+    addi a3, a3, 1  # depth++
+    mv t3, a3
+    slli t3, t3, 1  # t3 = depth * 2
+    add t4, sp, t3
+    sh a4, 0(t4)    # p_stk[depth] = next_p
+    addi t4, sp, 24
+    add t4, t4, t3
+    sh a5, 0(t4)    # o_stk[depth] = next_o
+    j idfs_enter_level
 
 idfs_resume_turn:
+    addi t2, t2, 1      # ++turn
+    addi t3, zero, 2    # if turn <= 2, jump
+    bleu t2, t3, idfs_turn_loop
+
 idfs_next_face:
-    addi t0, t0, 1      # face++
+    addi t0, t0, 1      # ++face
+    addi t3, zero, 2    # if face <= 2, jump
+    bleu t0, t3, idfs_face_loop
+
     addi a3, a3, -1     # --depth
+    blt a3, zero, idfs_search_failed # if depth < 0, return 0
+
+    # 0(sp) - 23(sp): p_stk
+    # 24(sp) - 47(sp): o_stk
+    # 48(sp) - 59(sp): face_stk
+    # 60(sp) - 71(sp): turn_stk
+    addi t3, sp, 48
+    add t3, t3, a3
+    lbu t0, 0(t3)   # face = face_stk[depth]
+    addi t3, sp, 60
+    add t3, t3, a3
+    lbu t2, 0(t3)   # turn = turn_stk[depth]
+    addi t3, a3, 1
+    slli t3, t3, 1
+    add t3, sp, t3
+    lhu a4, 0(t3)   # next_p = p_stkp[depth + 1]
+    addi t3, a3, 1
+    slli t3, t3, 1
+    addi t3, t3, 24
+    add t3, sp, t3
+    lhu a5, 0(t3)   # next_o = o_stk[depth + 1]
     
     j idfs_resume_turn
 idfs_search_failed:
