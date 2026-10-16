@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "lut.h"
 
-const char state_str[] = "21345671111111";
+const char state_str[] = "62345713133111";
 
 enum { CUBIES = 7, PERMUTATIONS = 5040, ORIENTATIONS = 729, STATES = PERMUTATIONS * ORIENTATIONS, MOVES = 9 };
 
@@ -157,8 +157,7 @@ static int iterative_dfs(uint16_t start_p, uint16_t start_o, uint8_t bound)
 
 enter_level:;
     uint8_t face = 0;
-    uint8_t last_face = ((depth > 0) ? face_stk[depth - 1] : 0xFF);
-
+    uint8_t last_face = depth > 0 ? face_stk[depth - 1] : 0xFF;
 face_loop:
     if (face == last_face)  // pruning 2
         goto next_face;
@@ -209,6 +208,7 @@ next_face:
     turn = turn_stk[depth];
     next_p = p_stk[depth + 1];  // retrieve next_* from *_stk[d+1]
     next_o = o_stk[depth + 1];
+    last_face = depth > 0 ? face_stk[depth - 1] : 0xFF;
     goto resume_turn;
 }
 
