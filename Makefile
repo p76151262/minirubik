@@ -18,7 +18,7 @@ INVALID_STATES := 1234567111111 123456711111111 02345671111111 82345671111111 \
 
 .PHONY: all check prove clean indent lut
 
-all: solver mini solver_opt solver_opt_rv32i.elf utils empty_c empty_s
+all: solver mini solver_opt noled.elf led.elf utils empty_c empty_s
 
 empty_s.o: empty.s
 	$(ASSEMBLER) $< -o $@
@@ -38,7 +38,10 @@ lut_s.o: lut.s
 solver_opt_s.o: solver_opt.s
 	$(RV32_AS) -march=rv32i -mabi=ilp32 -mno-relax $< -o $@
 
-solver_opt_rv32i.elf: solver_opt_s.o lut_s.o
+noled.elf: solver_opt_s.o lut_s.o
+	$(RV32_LD) -m elf32lriscv -nostdlib --no-relax -s $^ -o $@
+
+led.elf: solver_opt_s.o lut_s.o
 	$(RV32_LD) -m elf32lriscv -nostdlib --no-relax -s $^ -o $@
 
 solver_opt: solver_opt.c
