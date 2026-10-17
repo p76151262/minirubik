@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "lut.h"
 
-const char state_str[] = "62345713133111";
+const char state_str[] = "21345671111111";
 
 enum { CUBIES = 7, PERMUTATIONS = 5040, ORIENTATIONS = 729, STATES = PERMUTATIONS * ORIENTATIONS, MOVES = 9 };
 

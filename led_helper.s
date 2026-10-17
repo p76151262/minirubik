@@ -102,9 +102,7 @@ draw_unfolded_map:
     la a0, info_str_0
     li a7, 4
     ecall
-    li a0, 10
-    li a7, 11
-    ecall
+    jal print_state
 
     li t0, LED_MATRIX_0_BASE
     li t3, LED_MATRIX_0_SIZE
@@ -422,6 +420,31 @@ draw_unfolded_map_L0:
     jal draw_sticker
 
     lw s0, 0(sp)
+    lw ra, 12(sp)
+    addi sp, sp, 16
+    ret
+
+.global sleep_ms
+sleep_ms:
+    addi sp, sp, -16
+    sw ra, 12(sp)
+    sw s0, 0(sp)
+    sw s1, 4(sp)
+    mv s1, a0       # s1 = ms to sleep
+
+    li a7, 30       # Time_msec
+    ecall
+    mv s0, a0       # s0 = start_time
+sleep_loop:
+    # get current time
+    li a7, 30
+    ecall
+
+    sub t0, a0, s0  # t0 = current_time - start_time
+    bltu t0, s1, sleep_loop
+
+    lw s0, 0(sp)
+    lw s1, 4(sp)
     lw ra, 12(sp)
     addi sp, sp, 16
     ret

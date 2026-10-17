@@ -2,9 +2,10 @@ CC ?= cc
 CFLAGS ?= -O3 -std=c99 -Wall -Wextra -Wpedantic
 ASSEMBLER ?= as
 LINKER ?= ld
-RV32_CC ?= riscv32-unknown-elf-gcc
-RV32_AS ?= riscv32-unknown-elf-as
-RV32_LD ?= riscv32-unknown-elf-ld
+RV32_CC ?= riscv64-elf-gcc
+RV32_AS ?= riscv64-elf-as
+RV32_LD ?= riscv64-elf-ld
+RV32_CFLAGS ?= -march=rv32i -mabi=ilp32 -mno-relax -nostdlib
 FRAMA_C ?= frama-c
 CLANG_FORMAT := $(shell command -v clang-format-20 2>/dev/null || \
 	command -v clang-format 2>/dev/null)
@@ -19,7 +20,7 @@ INVALID_STATES := 1234567111111 123456711111111 02345671111111 82345671111111 \
 
 .PHONY: all check prove clean indent lut
 
-all: solver mini solver_opt noled.elf led.elf utils empty_c empty_s
+all: solver mini solver_opt co2.elf noled.elf led.elf utils empty_c empty_s
 
 empty_s.o: empty.s
 	$(ASSEMBLER) $< -o $@
@@ -34,10 +35,13 @@ utils: utils.c
 	$(CC) $(CFLAGS) $< -o $@
 
 noled.elf: solver_opt.s lut.s
-	$(RV32_CC) -march=rv32i -mabi=ilp32 -mno-relax -nostdlib $^ -o $@
+	$(RV32_CC) $(RV32_CFLAGS) $^ -o $@
 
 led.elf: solver_opt.s lut.s led_helper.s
-	$(RV32_CC) -march=rv32i -mabi=ilp32 -mno-relax -nostdlib -Wa,--defsym,DRAW_LED=1 $^ -o $@
+	$(RV32_CC) $(RV32_CFLAGS) -Wa,--defsym,DRAW_LED=1 $^ -o $@
+
+co2.elf: solver_opt.c
+	$(RV32_CC) -march=rv32i -mabi=ilp32 -O2 $< -o $@
 
 solver_opt: solver_opt.c
 	$(CC) $(CFLAGS) $< -o $@

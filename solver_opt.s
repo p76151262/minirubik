@@ -31,6 +31,7 @@ o_plus_twist_mod3:
     .byte 0, 1, 2, 0, 1
 .global state
 state: .zero 14
+temp_state: .zero 14    # for apply move
 parsing_str: .string "Parsing state "
 invalid_input_str_0: .string "Input state "
 invalid_input_str_1: .string " is invalid!\n"
@@ -125,6 +126,7 @@ idfs_driver_L0:
     j idfs_driver_L0
 idfs_driver_L1:
     # print solution
+    mv s11, s2  # s11 = num_moves
     la a0, ida_found_str
     li a7, 4
     ecall
@@ -155,9 +157,30 @@ _start_L0:
     li a0, 10
     li a7, 11
     ecall
+
 .ifdef DRAW_LED
     jal draw_unfolded_map
+    # ebreak
 .endif
+
+    # apply solution moves and update LED matrix
+    la s1, solution_path
+    li s0, 0    # i == 0
+_start_L1:
+    add t0, s1, s0
+    lbu a0, 0(t0)
+    jal apply_move
+.ifdef DRAW_LED
+    jal draw_unfolded_map
+    # sleep for 500 ms
+    li a0, 500
+    jal sleep_ms
+.endif
+    addi s0, s0, 1
+    bltu s0, s11, _start_L1
+
+    jal print_state
+
     # exit with 0
     li a0, 0
     j exit
@@ -482,67 +505,214 @@ idfs_search_failed:
     li a0, 0
     ret
 
-apply_move:
+quarter_turn:
+    mv t0, a3                           # t0 = source[0]
+    mv t1, a4                           # t1 = twist[0]
+    beqz a0, quarter_turn_L0      # face == 0
+    addi t0, t0, 7                      # t0 = source[1]
+    addi t1, t1, 7                      # t1 = twist[1]
+    li t2, 1
+    beq a0, t2, quarter_turn_L0         # face == 1
+    addi t0, t0, 7                      # t0 = source[2]
+    addi t1, t1, 7                      # t1 = twist[2]
+quarter_turn_L0:
+    # i = 0
+    lbu t2, 0(t0)   # t2 = from = source[face][0]
+    # p[0]
+    add t3, a6, t2  # t3 = state.p + from
+    lbu t4, 0(t3)   # t4 = state.p[from]
+    sb t4, 0(a7)    # temp_state.p[0] = state.p[from]
+    # o[0]
+    lbu t3, 7(t3)   # t3 = state.p[from + 7] = state.o[from]
+    lbu t4, 0(t1)   # t4 = twist[face][0]
+    add t3, t3, t4
+    add t3, t3, a5  # t3 = &o_plus_twist_mod3[t3]
+    lbu t3, 0(t3)   # t3 = o_plus_twist_mod3[t3]
+    sb t3, 7(a7)    # temp_state.o[0] = t3
+
+    # i = 1
+    lbu t2, 1(t0)   # t2 = from = source[face][1]
+    # p[1]
+    add t3, a6, t2  # t3 = state.p + from
+    lbu t4, 0(t3)   # t4 = state.p[from]
+    sb t4, 1(a7)    # temp_state.p[1] = state.p[from]
+    # o[1]
+    lbu t3, 7(t3)   # t3 = state.p[from + 7] = state.o[from]
+    lbu t4, 1(t1)   # t4 = twist[face][1]
+    add t3, t3, t4
+    add t3, t3, a5  # t3 = &o_plus_twist_mod3[t3]
+    lbu t3, 0(t3)   # t3 = o_plus_twist_mod3[t3]
+    sb t3, 8(a7)    # temp_state.o[1] = t3
+
+    # i = 2
+    lbu t2, 2(t0)   # t2 = from = source[face][2]
+    add t3, a6, t2  # t3 = state.p + from
+    lbu t4, 0(t3)   # t4 = state.p[from]
+    sb t4, 2(a7)    # temp_state.p[2] = state.p[from]
+    lbu t3, 7(t3)   # t3 = state.p[from + 7] = state.o[from]
+    lbu t4, 2(t1)   # t4 = twist[face][2]
+    add t3, t3, t4
+    add t3, t3, a5  # t3 = &o_plus_twist_mod3[t3]
+    lbu t3, 0(t3)   # t3 = o_plus_twist_mod3[t3]
+    sb t3, 9(a7)    # temp_state.o[2] = t3
+
+    # i = 3
+    lbu t2, 3(t0)
+    add t3, a6, t2
+    lbu t4, 0(t3)
+    sb t4, 3(a7) 
+    lbu t3, 7(t3)
+    lbu t4, 3(t1)
+    add t3, t3, t4
+    add t3, t3, a5
+    lbu t3, 0(t3)
+    sb t3, 10(a7)
+
+    # i = 4
+    lbu t2, 4(t0)
+    add t3, a6, t2
+    lbu t4, 0(t3)
+    sb t4, 4(a7) 
+    lbu t3, 7(t3)
+    lbu t4, 4(t1)
+    add t3, t3, t4
+    add t3, t3, a5
+    lbu t3, 0(t3)
+    sb t3, 11(a7)
+
+    # i = 5
+    lbu t2, 5(t0)
+    add t3, a6, t2
+    lbu t4, 0(t3)
+    sb t4, 5(a7) 
+    lbu t3, 7(t3)
+    lbu t4, 5(t1)
+    add t3, t3, t4
+    add t3, t3, a5
+    lbu t3, 0(t3)
+    sb t3, 12(a7)
+
+    # i = 6
+    lbu t2, 6(t0)
+    add t3, a6, t2
+    lbu t4, 0(t3)
+    sb t4, 6(a7) 
+    lbu t3, 7(t3)
+    lbu t4, 6(t1)
+    add t3, t3, t4
+    add t3, t3, a5
+    lbu t3, 0(t3)
+    sb t3, 13(a7)
+
+    # update state with temp_state
+    lw t0, 0(a7)
+    lw t1, 4(a7)
+    lw t2, 8(a7)
+    lhu t3, 12(a7)  # temp_state[12],[13]
+    sw t0, 0(a6)
+    sw t1, 4(a6)
+    sw t2, 8(a6)
+    sh t3, 12(a6)
+
+    addi a2, a2, 1  # i++
+    bleu a2, a1, quarter_turn
     ret
 
+# input: a0 = move number
+apply_move:
+    mv a2, a0
+    la a1, move_to_face
+    add a0, a1, a2      # a0 = &move_to_face[move]
+    lbu a0, 0(a0)       # a0 = move_to_face[move]
+    la a1, move_mod3
+    add a1, a1, a2
+    lbu a1, 0(a1)       # a1 = turns = move_mod3[move]
+    li a2, 0            # a2 = i = 0
+    la a3, source
+    la a4, twist
+    la a5, o_plus_twist_mod3
+    la a6, state
+    la a7, temp_state
+    j quarter_turn
+
+.global print_state
 print_state:
     la t0, state
-    lbu a0, 0(t0)
+    lw t1, 0(t0)
+    lw t2, 4(t0)
+    lw t3, 8(t0)
+    lhu t4, 12(t0)
+
+    andi a0, t1, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
-    lbu a0, 1(t0)
+    srli t1, t1, 8
+    andi a0, t1, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
-    lbu a0, 2(t0)
+    srli t1, t1, 8
+    andi a0, t1, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
-    lbu a0, 3(t0)
+    srli t1, t1, 8
+    andi a0, t1, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
-    lbu a0, 4(t0)
+
+    andi a0, t2, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
-    lbu a0, 5(t0)
+    srli t2, t2, 8
+    andi a0, t2, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
-    lbu a0, 6(t0)
+    srli t2, t2, 8
+    andi a0, t2, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
-    lbu a0, 7(t0)
+    srli t2, t2, 8
+    andi a0, t2, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
-    lbu a0, 8(t0)
+
+    andi a0, t3, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
-    lbu a0, 9(t0)
+    srli t3, t3, 8
+    andi a0, t3, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
-    lbu a0, 10(t0)
+    srli t3, t3, 8
+    andi a0, t3, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
-    lbu a0, 11(t0)
+    srli t3, t3, 8
+    andi a0, t3, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
-    lbu a0, 12(t0)
+
+    andi a0, t4, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
-    lbu a0, 13(t0)
+    srli t4, t4, 8
+    andi a0, t4, 0xFF
     addi a0, a0, 1
     li a7, 1
     ecall
+
     li a0, 10
     li a7, 11
     ecall
