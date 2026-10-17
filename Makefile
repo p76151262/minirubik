@@ -2,6 +2,7 @@ CC ?= cc
 CFLAGS ?= -O3 -std=c99 -Wall -Wextra -Wpedantic
 ASSEMBLER ?= as
 LINKER ?= ld
+RV32_CC ?= riscv32-unknown-elf-gcc
 RV32_AS ?= riscv32-unknown-elf-as
 RV32_LD ?= riscv32-unknown-elf-ld
 FRAMA_C ?= frama-c
@@ -32,17 +33,11 @@ empty_c: empty.c
 utils: utils.c
 	$(CC) $(CFLAGS) $< -o $@
 
-lut_s.o: lut.s
-	$(RV32_AS) -march=rv32i -mabi=ilp32 -mno-relax $< -o $@
+noled.elf: solver_opt.s lut.s
+	$(RV32_CC) -march=rv32i -mabi=ilp32 -mno-relax -nostdlib $^ -o $@
 
-solver_opt_s.o: solver_opt.s
-	$(RV32_AS) -march=rv32i -mabi=ilp32 -mno-relax $< -o $@
-
-noled.elf: solver_opt_s.o lut_s.o
-	$(RV32_LD) -m elf32lriscv -nostdlib --no-relax -s $^ -o $@
-
-led.elf: solver_opt_s.o lut_s.o
-	$(RV32_LD) -m elf32lriscv -nostdlib --no-relax -s $^ -o $@
+led.elf: solver_opt.s lut.s led_helper.s
+	$(RV32_CC) -march=rv32i -mabi=ilp32 -mno-relax -nostdlib -Wa,--defsym,DRAW_LED=1 $^ -o $@
 
 solver_opt: solver_opt.c
 	$(CC) $(CFLAGS) $< -o $@
@@ -124,7 +119,7 @@ endif
 		{ echo "error: clang-format version 20 required"; exit 1; }
 	$(CLANG_FORMAT) -i $(C_SOURCES)
 
-lut: utils utils
+lut: utils
 	./$<
 	clang-format -style=file -i lut.h
 

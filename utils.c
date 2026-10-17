@@ -218,7 +218,6 @@ int main(void)
     fprintf(fptr, ".data\n\n");
 
     fprintf(fptr, ".globl next_rank_p\n");
-    fprintf(fptr, ".align 2\n");
     fprintf(fptr, "next_rank_p:\n");
     for (size_t face = 0; face <= 2; face++) {
         fprintf(fptr, "next_rank_p_f%zu:\n", face);  // face sub tag
@@ -235,7 +234,6 @@ int main(void)
     
     fprintf(fptr, "\n");
     fprintf(fptr, ".globl next_rank_o\n");
-    fprintf(fptr, ".align 2\n");
     fprintf(fptr, "next_rank_o:\n");
     for (size_t face = 0; face <= 2; face++) {
         fprintf(fptr, "next_rank_o_f%zu:\n", face);  // face sub tag
@@ -252,7 +250,6 @@ int main(void)
 
     fprintf(fptr, "\n");
     fprintf(fptr, ".globl h_p\n");
-    fprintf(fptr, ".align 2\n");
     fprintf(fptr, "h_p:\n");
     for (size_t i = 0; i < PERMUTATIONS; i++) {
         if (i % 16 == 0)
@@ -266,7 +263,6 @@ int main(void)
 
     fprintf(fptr, "\n");
     fprintf(fptr, ".globl h_o\n");
-    fprintf(fptr, ".align 2\n");
     fprintf(fptr, "h_o:\n");
     for (size_t i = 0; i < ORIENTATIONS; i++) {
         if (i % 16 == 0)

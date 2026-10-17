@@ -1,4 +1,5 @@
 .data
+state_str: .string "21345671111111"
 source:
     .byte 1, 4, 2, 0, 3, 5, 6
     .byte 0, 1, 2, 4, 5, 6, 3
@@ -28,9 +29,8 @@ move_mod3:
     .byte 0, 1, 2, 0, 1, 2, 0, 1, 2
 o_plus_twist_mod3:
     .byte 0, 1, 2, 0, 1
-
+.global state
 state: .zero 14
-state_str: .string "21345671111111"
 parsing_str: .string "Parsing state "
 invalid_input_str_0: .string "Input state "
 invalid_input_str_1: .string " is invalid!\n"
@@ -59,17 +59,6 @@ move_names:
     .word move_str6
     .word move_str7
     .word move_str8
-
-#define LED_MATRIX_0_BASE (0xf0000000)
-#define LED_MATRIX_0_SIZE (0xdac)
-#define LED_MATRIX_0_WIDTH (0x23)
-#define LED_MATRIX_0_HEIGHT (0x19)
-
-# mv a6, a0
-# mv a0, t2
-# li a7, 1
-# ecall
-# mv a0, a6
 
 .text
 .globl _start
@@ -162,8 +151,13 @@ idfs_driver_L2:
     li a7, 11
     ecall
     j idfs_driver_L2
-
 _start_L0:
+    li a0, 10
+    li a7, 11
+    ecall
+.ifdef DRAW_LED
+    jal draw_unfolded_map
+.endif
     # exit with 0
     li a0, 0
     j exit
@@ -488,6 +482,9 @@ idfs_search_failed:
     li a0, 0
     ret
 
+apply_move:
+    ret
+
 print_state:
     la t0, state
     lbu a0, 0(t0)
@@ -550,8 +547,6 @@ print_state:
     li a7, 11
     ecall
     ret
-
-
 
 exit:
     li a7, 93 # exit with status code in a0
