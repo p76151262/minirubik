@@ -12,3 +12,4 @@ massif.out.*
 temp.md
 *.su
 *.elf
+c2rv32i.s

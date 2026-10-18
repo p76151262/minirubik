@@ -200,63 +200,81 @@ parse_state:
     li a7, 11
     ecall
 
+    li a0, 49   # a0 = '1'
+    li a1, 55   # a1 = '7'
+    li a2, 51   # a2 = '3'
+
     # permutations
-    lbu t2, 0(t0)            # t2 = str[0]
-    beqz t2, invalid_input  # invalid if t2 == '\0'
-    addi t2, t2, -49        # t2 -= '1'
-    sb t2, 0(t1)            # state[0] = t2
+    lbu t2, 0(t0)               # t2 = str[0]
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a1, invalid_input  # invalid if t2 > '7'
+    addi t2, t2, -49            # t2 -= '1'
+    sb t2, 0(t1)                # state[0] = t2
     lbu t2, 1(t0)
-    beqz t2, invalid_input
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a1, invalid_input  # invalid if t2 > '7'
     addi t2, t2, -49
     sb t2, 1(t1)
     lbu t2, 2(t0)
-    beqz t2, invalid_input
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a1, invalid_input  # invalid if t2 > '7'
     addi t2, t2, -49
     sb t2, 2(t1)
     lbu t2, 3(t0)
-    beqz t2, invalid_input
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a1, invalid_input  # invalid if t2 > '7'
     addi t2, t2, -49
     sb t2, 3(t1)
     lbu t2, 4(t0)
-    beqz t2, invalid_input
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a1, invalid_input  # invalid if t2 > '7'
     addi t2, t2, -49
     sb t2, 4(t1)
     lbu t2, 5(t0)
-    beqz t2, invalid_input
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a1, invalid_input  # invalid if t2 > '7'
     addi t2, t2, -49
     sb t2, 5(t1)
     lbu t2, 6(t0)
-    beqz t2, invalid_input
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a1, invalid_input  # invalid if t2 > '7'
     addi t2, t2, -49
     sb t2, 6(t1)
 
     # orientations
-    lbu t2, 7(t0)           # t2 = str[7]
-    beqz t2, invalid_input  # invalid if t2 == '\0'
-    addi t2, t2, -49        # t2 -= '1'
-    sb t2, 7(t1)            # state[7] = t2
+    lbu t2, 7(t0)               # t2 = str[7]
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a2, invalid_input  # invalid if t2 > '3'
+    addi t2, t2, -49            # t2 -= '1'
+    sb t2, 7(t1)                # state[7] = t2
     lbu t2, 8(t0)
-    beqz t2, invalid_input
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a2, invalid_input  # invalid if t2 > '3'
     addi t2, t2, -49
     sb t2, 8(t1)
     lbu t2, 9(t0)
-    beqz t2, invalid_input
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a2, invalid_input  # invalid if t2 > '3'
     addi t2, t2, -49
     sb t2, 9(t1)
     lbu t2, 10(t0)
-    beqz t2, invalid_input
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a2, invalid_input  # invalid if t2 > '3'
     addi t2, t2, -49
     sb t2, 10(t1)
     lbu t2, 11(t0)
-    beqz t2, invalid_input
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a2, invalid_input  # invalid if t2 > '3'
     addi t2, t2, -49
     sb t2, 11(t1)
     lbu t2, 12(t0)
-    beqz t2, invalid_input
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a2, invalid_input  # invalid if t2 > '3'
     addi t2, t2, -49
     sb t2, 12(t1)
     lbu t2, 13(t0)
-    beqz t2, invalid_input
+    bltu t2, a0, invalid_input  # invalid if t2 < '1'
+    bgtu t2, a2, invalid_input  # invalid if t2 > '3'
     addi t2, t2, -49
     sb t2, 13(t1)
 
@@ -265,41 +283,40 @@ parse_state:
     ecall
 
     # detect invalid state, check the following conditions
-    # 1. state[14] is null terminater
-    # 2. p[i] < 7
-    # 3. o[i] < 3
-    # 4. no duplicate p[i]
-    # 5. if sum of o[i]s' is multiple of 3
-    lbu t0, 14(t1)
-    bne t0, zero, invalid_input # str[14] != '\0'
-    li t0, 0    # t0 = i = 0
-    li t5, 7
-    li t6, 3
-    li t2, 0    # t2 = sum = 0
+    # 1. stat_str[14] is null terminater
+    # 2. no duplicate p[i]
+    # 3. if sum of o[i]s' is multiple of 3
+    lbu t0, 14(t0)
+    bnez t0, invalid_input  # str[14] != '\0'
+    # t0 already = '\0' = 0, otherwise
+    li t5, 7                # t5 = i's upper bound
+    li t6, 3                # t6 = 3, for sum % 3
+    li t2, 0                # t2 = sum = 0
 parse_state_L0:
     add a0, t1, t0              # a0 = state.p + i
-    lbu a1, 0(a0)               # a1 = state.p[i]
-    bgeu a1, t5, invalid_input  # state.p[i] >= 7
     lbu a1, 7(a0)               # a1 = state.o[i]
-    bgeu a1, t6, invalid_input  # state.o[i] >= 3
+    lbu a0, 0(a0)               # a0 = state.p[i]
     li t4, 0                    # t4 = j = 0
 parse_state_L1:
+    bgeu t4, t0, parse_state_L2 # j < i
     add t3, t1, t4              # t3 = state.p + j
     lbu t3, 0(t3)               # t3 = state.p[j]
     beq t3, a0, invalid_input   # state.p[j] == state.p[i]
     addi t4, t4, 1              # j++
-    bltu t4, t0, parse_state_L1 # j < i
+    j parse_state_L1
+parse_state_L2:
     add t2, t2, a1              # sum += state.o[i]
     addi t0, t0, 1              # i++
     bltu t0, t5, parse_state_L0 # i < 7
-parse_state_L2:
-    bltu t2, t6, parse_state_L3 # if sum < 3, don't subtract
-    addi t2, t2, -3             # sum -= 3
-    j parse_state_L2
 parse_state_L3:
+    bltu t2, t6, parse_state_L4 # if sum < 3, don't subtract
+    addi t2, t2, -3             # sum -= 3
+    j parse_state_L3
+parse_state_L4:
     bnez t2, invalid_input      # sum != 0, invalid
     ret
 
+# TODO: print out reason of invalid
 invalid_input:
     la a0, invalid_input_str_0
     li a7, 4
@@ -310,7 +327,7 @@ invalid_input:
     la a0, invalid_input_str_1
     li a7, 4
     ecall
-    li a0, 2
+    li a0, 2    # exit with status code 2
     j exit
 
 rank_state:
