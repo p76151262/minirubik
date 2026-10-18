@@ -27,15 +27,14 @@ info_str_0: .string "Drawing LED martix..."
 
 .text
 .global get_sticker_color
-# input: a0 = physical_cubie (0~7), a1 = orientation (0~2), a2 = face_type (0=U/D, 1=F/B, 2=L/R)
+# input: a0 = physical_cubie (0~7), a1 = orientation (0~2), a2 = face_type (0=U/D, 1=CW face, 2=CCW face)
 # output: a0 = sticker RGB value
 get_sticker_color:
-    # t0 = a3 + 3 - a1 = face_type + 3 - orientation
-    addi t0, a2, 3
-    sub t0, t0, a1
+    # calculation: (face_type + o) % 3
+    add t0, a2, a1  # t0 = face_type + o
     
-    # t0 = t0 % 3 (t0 maximum at 5, minus once or not)
-    li  t1, 3
+    # t0 = t0 % 3 (t0 maximum at 4, minus once or not)
+    li t1, 3
     bltu t0, t1, get_sticker_color_L0   # t0 < 3, ok
     sub t0, t0, t1                      # otherwise, t0 -= 3
 get_sticker_color_L0:
@@ -103,16 +102,6 @@ draw_unfolded_map:
     li a7, 4
     ecall
     jal print_state
-
-    li t0, LED_MATRIX_0_BASE
-    li t3, LED_MATRIX_0_SIZE
-    add t1, t0, t3  # t1 = last valid LED mem addr
-    li t4, 0x292929 # grey black
-    li t2, 0        # t2 = i = 0
-draw_unfolded_map_L0:
-    sw t4, 0(t0)
-    addi t0, t0, 4
-    bltu t0, t1, draw_unfolded_map_L0
 
 # The cubie labeled as 0 is fixed in terms of position and orientation
 #                          UP
@@ -411,6 +400,19 @@ draw_unfolded_map_L0:
     lw s0, 0(sp)
     lw ra, 12(sp)
     addi sp, sp, 16
+    ret
+
+.global draw_background
+draw_background:
+    li t0, LED_MATRIX_0_BASE
+    li t3, LED_MATRIX_0_SIZE
+    add t1, t0, t3  # t1 = start of invalid LED mem addr
+    li t4, 0x48494B # background color
+    li t2, 0        # t2 = i = 0
+draw_background_L0:
+    sw t4, 0(t0)
+    addi t0, t0, 4
+    bltu t0, t1, draw_background_L0
     ret
 
 .global sleep_ms

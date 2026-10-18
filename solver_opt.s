@@ -1,5 +1,6 @@
 .data
 state_str: .string "21345671111111"
+.equ DRAW_DELAY, 3000
 source:
     .byte 1, 4, 2, 0, 3, 5, 6
     .byte 0, 1, 2, 4, 5, 6, 3
@@ -157,8 +158,9 @@ _start_L0:
     ecall
 
 .ifdef DRAW_LED
+    jal draw_background
     jal draw_unfolded_map
-    li a0, 500
+    li a0, DRAW_DELAY
     jal sleep_ms
 .endif
 
@@ -166,16 +168,16 @@ _start_L0:
     la s1, solution_path
     li s0, 0    # i == 0
 _start_L1:
-    bgeu s0, s11, _start_L2
+    bgeu s0, s11, _start_L2 # i < bound
     add t0, s1, s0
     lbu a0, 0(t0)   # a0 = solution_path[i]
     jal apply_move
 .ifdef DRAW_LED
     jal draw_unfolded_map
-    li a0, 500
+    li a0, DRAW_DELAY
     jal sleep_ms
 .endif
-    addi s0, s0, 1
+    addi s0, s0, 1  # i++
     j _start_L1
 
 _start_L2:
