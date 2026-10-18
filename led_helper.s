@@ -5,23 +5,23 @@
 
 .data
 cubie_colors:
-    # order: [0]=U/D, [1]=F/B, [2]=L/R
-    # 0: FUL (W, G, O)
+    # order: [0]=U/D, [1]=CW face, [2]=CCW face
+    # 0: FUL (W, G, O), (U->F->L, CW)
     .word 0xFFFFFF, 0x00FF00, 0xFFA500
-    # 1: FUR (W, G, R)
-    .word 0xFFFFFF, 0x00FF00, 0xFF0000
-    # 2: FDR (Y, G, R)
+    # 1: FUR (W, R, G), (U->R->F, CW)
+    .word 0xFFFFFF, 0xFF0000, 0x00FF00
+    # 2: FDR (Y, G, R), (D->F->R, CW)
     .word 0xFFFF00, 0x00FF00, 0xFF0000
-    # 3: FDL (Y, G, O)
-    .word 0xFFFF00, 0x00FF00, 0xFFA500
-    # 4: BUR (W, B, R)
+    # 3: FDL (Y, O, G), (D->L->F, CW)
+    .word 0xFFFF00, 0xFFA500, 0x00FF00
+    # 4: BUR (W, B, R), (U->B->R, CW)
     .word 0xFFFFFF, 0x0000FF, 0xFF0000
-    # 5: BDR (Y, B, R)
-    .word 0xFFFF00, 0x0000FF, 0xFF0000
-    # 6: BDL (Y, B, O)
+    # 5: BDR (Y, R, B), (D->R->B, CW)
+    .word 0xFFFF00, 0xFF0000, 0x0000FF
+    # 6: BDL (Y, B, O), (D->B->L, CW)
     .word 0xFFFF00, 0x0000FF, 0xFFA500
-    # 7: BUL (W, B, O)
-    .word 0xFFFFFF, 0x0000FF, 0xFFA500
+    # 7: BUL (W, O, B), (U->L->B, CW)
+    .word 0xFFFFFF, 0xFFA500, 0x0000FF
 
 info_str_0: .string "Drawing LED martix..."
 
@@ -185,7 +185,7 @@ draw_unfolded_map_L0:
     # FUL's left face
     li a0, 0            # physical_cubie 0 = 0
     li a1, 0            # orientation = 0
-    li a2, 2            # face_type = 2 (L/R)
+    li a2, 2            # face_type = 2 (U->F->L)
     jal get_sticker_color
     
     li a1, 4
@@ -195,7 +195,7 @@ draw_unfolded_map_L0:
     # FDL's left face
     lbu a0, 2(s0)      # physical_cubie 3 = p[2]
     lbu a1, 9(s0)      # orientation = o[2]
-    li a2, 2           # face_type = 2 (L/R)
+    li a2, 1           # face_type = 1 (D->L->F)
     addi a0, a0, 1
     jal get_sticker_color
     
@@ -206,7 +206,7 @@ draw_unfolded_map_L0:
     # BDL's left face
     lbu a0, 5(s0)       # physical_cubie 6 = p[5]
     lbu a1, 12(s0)      # orientation = o[5]
-    li a2, 2            # face_type = 2 (L/R)
+    li a2, 2            # face_type = 2 (D->B->L)
     addi a0, a0, 1
     jal get_sticker_color
     
@@ -217,7 +217,7 @@ draw_unfolded_map_L0:
     # BUL's left face
     lbu a0, 6(s0)       # physical_cubie 7 = p[6]
     lbu a1, 13(s0)      # orientation = o[6]
-    li a2, 2            # face_type = 2 (L/R)
+    li a2, 1            # face_type = 1 (U->L->B)
     addi a0, a0, 1
     jal get_sticker_color
     
@@ -230,7 +230,7 @@ draw_unfolded_map_L0:
     # FUL's front face
     li a0, 0    # physical_cubie 0 = 0
     li a1, 0    # orientation = 0
-    li a2, 1    # face_type = 1 (F/B)
+    li a2, 1    # face_type = 1 (U->F->L)
     jal get_sticker_color
 
     li a1, 8
@@ -240,7 +240,7 @@ draw_unfolded_map_L0:
     # FUR's front face
     lbu a0, 0(s0)       # physical_cubie 1 = p[0]
     lbu a1, 7(s0)       # orientation = o[0]
-    li a2, 1            # face_type = 1 (F/B)
+    li a2, 2            # face_type = 2 (U->R->F)
     addi a0, a0, 1
     jal get_sticker_color
     
@@ -251,7 +251,7 @@ draw_unfolded_map_L0:
     # FDR's front face
     lbu a0, 1(s0)       # physical_cubie 2 = p[1]
     lbu a1, 8(s0)       # orientation = o[1]
-    li a2, 1            # face_type = 1 (F/B)
+    li a2, 1            # face_type = 1 (D->F->R)
     addi a0, a0, 1
     jal get_sticker_color
     
@@ -262,7 +262,7 @@ draw_unfolded_map_L0:
     # FDL's front face
     lbu a0, 2(s0)       # physical_cubie 3 = p[2]
     lbu a1, 9(s0)       # orientation = o[2]
-    li a2, 1            # face_type = 1 (F/B)
+    li a2, 2            # face_type = 2 (D->L->F)
     addi a0, a0, 1
     jal get_sticker_color
     
@@ -321,7 +321,7 @@ draw_unfolded_map_L0:
     # FUR's right face
     lbu a0, 0(s0)       # physical_cubie 1 = p[0]
     lbu a1, 7(s0)       # orientation = o[0]
-    li a2, 2            # face_type = 2 (L/R)
+    li a2, 1            # face_type = 1 (U->R->F)
     addi a0, a0, 1      
     jal get_sticker_color
 
@@ -332,7 +332,7 @@ draw_unfolded_map_L0:
     # FDR's right face
     lbu a0, 1(s0)       # physical_cubie 2 = p[1]
     lbu a1, 8(s0)       # orientation = o[1]
-    li a2, 2            # face_type = 2 (L/R)
+    li a2, 2            # face_type = 2 (D->F->R)
     addi a0, a0, 1      
     jal get_sticker_color
 
@@ -343,7 +343,7 @@ draw_unfolded_map_L0:
     # BUR's right face
     lbu a0, 3(s0)       # physical_cubie 4 = p[3]
     lbu a1, 10(s0)      # orientation = o[3]
-    li a2, 2            # face_type = 2 (L/R)
+    li a2, 2            # face_type = 2 (U->B->R)
     addi a0, a0, 1      
     jal get_sticker_color
 
@@ -354,7 +354,7 @@ draw_unfolded_map_L0:
     # BDR's right face
     lbu a0, 4(s0)       # physical_cubie 5 = p[4]
     lbu a1, 11(s0)      # orientation = o[4]
-    li a2, 2            # face_type = 2 (L/R)
+    li a2, 1            # face_type = 2 (D->R->B)
     addi a0, a0, 1      
     jal get_sticker_color
 
@@ -364,10 +364,10 @@ draw_unfolded_map_L0:
 
     # BACK
 
-    # BUL's back face
+    # BUR's back face
     lbu a0, 3(s0)       # physical_cubie 4 = p[3]
-    lbu a1, 10(s0)       # orientation = o[3]
-    li a2, 1            # face_type = 1 (F/B)
+    lbu a1, 10(s0)      # orientation = o[3]
+    li a2, 1            # face_type = 2 (U->B->R)
     addi a0, a0, 1      
     jal get_sticker_color
 
@@ -375,32 +375,21 @@ draw_unfolded_map_L0:
     li a2, 8
     jal draw_sticker
 
-    # BDL's back face
-    lbu a0, 4(s0)       # physical_cubie 5 = p[4]
-    lbu a1, 11(s0)      # orientation = o[4]
-    li a2, 1            # face_type = 1 (F/B)
-    addi a0, a0, 1      
-    jal get_sticker_color
-
-    li a1, 24
-    li a2, 12
-    jal draw_sticker
-
-    # BDL's back face
-    lbu a0, 4(s0)       # physical_cubie 5 = p[4]
-    lbu a1, 11(s0)      # orientation = o[4]
-    li a2, 1            # face_type = 1 (F/B)
-    addi a0, a0, 1      
-    jal get_sticker_color
-
-    li a1, 24
-    li a2, 12
-    jal draw_sticker
-
     # BDR's back face
+    lbu a0, 4(s0)       # physical_cubie 5 = p[4]
+    lbu a1, 11(s0)      # orientation = o[4]
+    li a2, 2            # face_type = 2 (D->R->B)
+    addi a0, a0, 1      
+    jal get_sticker_color
+
+    li a1, 24
+    li a2, 12
+    jal draw_sticker
+
+    # BDL's back face
     lbu a0, 5(s0)       # physical_cubie 6 = p[5]
     lbu a1, 12(s0)      # orientation = o[5]
-    li a2, 1            # face_type = 1 (F/B)
+    li a2, 1            # face_type = 2 (D->B->L)
     addi a0, a0, 1      
     jal get_sticker_color
 
@@ -408,10 +397,10 @@ draw_unfolded_map_L0:
     li a2, 12
     jal draw_sticker
 
-    # BUR's back face
+    # BUL's back face
     lbu a0, 6(s0)       # physical_cubie 7 = p[6]
     lbu a1, 13(s0)      # orientation = o[6]
-    li a2, 1            # face_type = 1 (F/B)
+    li a2, 2            # face_type = 2 (U->L->B)
     addi a0, a0, 1      
     jal get_sticker_color
 

@@ -6,6 +6,7 @@ RV32_CC ?= riscv64-elf-gcc
 RV32_AS ?= riscv64-elf-as
 RV32_LD ?= riscv64-elf-ld
 RV32_CFLAGS ?= -march=rv32i -mabi=ilp32 -mno-relax -nostdlib
+RIPES ?= ../Ripes-v2.2.6-107-geae84b0-linux-x86_64.AppImage
 FRAMA_C ?= frama-c
 CLANG_FORMAT := $(shell command -v clang-format-20 2>/dev/null || \
 	command -v clang-format 2>/dev/null)
@@ -18,9 +19,9 @@ VECTORS := tests/solutions.txt
 INVALID_STATES := 1234567111111 123456711111111 02345671111111 82345671111111 \
 	12345671111110 12345671111114 1234567111111a 11345671111111 12345671111112
 
-.PHONY: all check prove clean indent lut
+.PHONY: all check prove clean indent lut ripes_cli
 
-all: solver mini solver_opt co2.elf noled.elf led.elf utils empty_c empty_s
+all: solver mini solver_opt c2rv32i.elf noled.elf led.elf utils empty_c empty_s
 
 empty_s.o: empty.s
 	$(ASSEMBLER) $< -o $@
@@ -40,8 +41,9 @@ noled.elf: solver_opt.s lut.s
 led.elf: solver_opt.s lut.s led_helper.s
 	$(RV32_CC) $(RV32_CFLAGS) -Wa,--defsym,DRAW_LED=1 $^ -o $@
 
-co2.elf: solver_opt.c
-	$(RV32_CC) -march=rv32i -mabi=ilp32 -O2 $< -o $@
+c2rv32i.elf: solver_opt.c
+	$(RV32_CC) -march=rv32i -mabi=ilp32 -O3 -S $< -o c2rv32i.s
+	$(RV32_CC) -march=rv32i -mabi=ilp32 -O3 $< -o $@
 
 solver_opt: solver_opt.c
 	$(CC) $(CFLAGS) $< -o $@
@@ -126,6 +128,10 @@ endif
 lut: utils
 	./$<
 	clang-format -style=file -i lut.h
+
+ripes_cli: c2rv32i.elf noled.elf
+	$(RIPES) --mode cli --iret --src c2rv32i.elf -t elf --proc "RV32_ISS"
+	$(RIPES) --mode cli --iret --src noled.elf -t elf --proc "RV32_ISS"
 
 clean:
 	$(RM) solver mini solver_opt utils empty_c empty_s *.o *.elf

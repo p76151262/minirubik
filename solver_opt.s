@@ -32,7 +32,7 @@ o_plus_twist_mod3:
 .global state
 state: .zero 14
 temp_state: .zero 14    # for apply move
-parsing_str: .string "Parsing state "
+parsing_str: .string "Parsing state string: "
 invalid_input_str_0: .string "Input state "
 invalid_input_str_1: .string " is invalid!\n"
 rank_p_str: .string "rank_p = "
@@ -64,9 +64,7 @@ move_names:
 .text
 .globl _start
 _start:
-    la a0, state_str
     jal parse_state
-    beq a0, zero, invalid_input
 
     # state parsed successfully
     jal rank_state
@@ -160,25 +158,27 @@ _start_L0:
 
 .ifdef DRAW_LED
     jal draw_unfolded_map
-    # ebreak
+    li a0, 500
+    jal sleep_ms
 .endif
 
     # apply solution moves and update LED matrix
     la s1, solution_path
     li s0, 0    # i == 0
 _start_L1:
+    bgeu s0, s11, _start_L2
     add t0, s1, s0
-    lbu a0, 0(t0)
+    lbu a0, 0(t0)   # a0 = solution_path[i]
     jal apply_move
 .ifdef DRAW_LED
     jal draw_unfolded_map
-    # sleep for 500 ms
     li a0, 500
     jal sleep_ms
 .endif
     addi s0, s0, 1
-    bltu s0, s11, _start_L1
+    j _start_L1
 
+_start_L2:
     jal print_state
 
     # exit with 0
@@ -186,64 +186,77 @@ _start_L1:
     j exit
 
 parse_state:
-    mv t0, a0
-
+    la t0, state_str
+    la t1, state
+    li t5, 7
     # print "Parsing state <state_str>\n"
     la a0, parsing_str
     li a7, 4
     ecall
-    la a0, state_str
+    mv a0, t0
     li a7, 4
     ecall
     li a0, 10 # newline
     li a7, 11
     ecall
 
-    la t1, state
-
     # permutations
-    lb t2, 0(t0)       # t2 = str[0]
-    addi t2, t2, -49 # t2 -= '1'
-    sb t2, 0(t1)       # state[0] = t2
-    lb t2, 1(t0)
+    lbu t2, 0(t0)            # t2 = str[0]
+    beqz t2, invalid_input  # invalid if t2 == '\0'
+    addi t2, t2, -49        # t2 -= '1'
+    sb t2, 0(t1)            # state[0] = t2
+    lbu t2, 1(t0)
+    beqz t2, invalid_input
     addi t2, t2, -49
     sb t2, 1(t1)
-    lb t2, 2(t0)
+    lbu t2, 2(t0)
+    beqz t2, invalid_input
     addi t2, t2, -49
     sb t2, 2(t1)
-    lb t2, 3(t0)
+    lbu t2, 3(t0)
+    beqz t2, invalid_input
     addi t2, t2, -49
     sb t2, 3(t1)
-    lb t2, 4(t0)
+    lbu t2, 4(t0)
+    beqz t2, invalid_input
     addi t2, t2, -49
     sb t2, 4(t1)
-    lb t2, 5(t0)
+    lbu t2, 5(t0)
+    beqz t2, invalid_input
     addi t2, t2, -49
     sb t2, 5(t1)
-    lb t2, 6(t0)
+    lbu t2, 6(t0)
+    beqz t2, invalid_input
     addi t2, t2, -49
     sb t2, 6(t1)
 
     # orientations
-    lb t2, 7(t0)       # t2 = str[7]
-    addi t2, t2, -49 # t2 -= '1'
-    sb t2, 7(t1)       # state[7] = t2
-    lb t2, 8(t0)
+    lbu t2, 7(t0)           # t2 = str[7]
+    beqz t2, invalid_input  # invalid if t2 == '\0'
+    addi t2, t2, -49        # t2 -= '1'
+    sb t2, 7(t1)            # state[7] = t2
+    lbu t2, 8(t0)
+    beqz t2, invalid_input
     addi t2, t2, -49
     sb t2, 8(t1)
-    lb t2, 9(t0)
+    lbu t2, 9(t0)
+    beqz t2, invalid_input
     addi t2, t2, -49
     sb t2, 9(t1)
-    lb t2, 10(t0)
+    lbu t2, 10(t0)
+    beqz t2, invalid_input
     addi t2, t2, -49
     sb t2, 10(t1)
-    lb t2, 11(t0)
+    lbu t2, 11(t0)
+    beqz t2, invalid_input
     addi t2, t2, -49
     sb t2, 11(t1)
-    lb t2, 12(t0)
+    lbu t2, 12(t0)
+    beqz t2, invalid_input
     addi t2, t2, -49
     sb t2, 12(t1)
-    lb t2, 13(t0)
+    lbu t2, 13(t0)
+    beqz t2, invalid_input
     addi t2, t2, -49
     sb t2, 13(t1)
 
@@ -251,8 +264,40 @@ parse_state:
     li a7, 11
     ecall
 
-    # TODO: detect invalid input string
-    li a0, 1
+    # detect invalid state, check the following conditions
+    # 1. state[14] is null terminater
+    # 2. p[i] < 7
+    # 3. o[i] < 3
+    # 4. no duplicate p[i]
+    # 5. if sum of o[i]s' is multiple of 3
+    lbu t0, 14(t1)
+    bne t0, zero, invalid_input # str[14] != '\0'
+    li t0, 0    # t0 = i = 0
+    li t5, 7
+    li t6, 3
+    li t2, 0    # t2 = sum = 0
+parse_state_L0:
+    add a0, t1, t0              # a0 = state.p + i
+    lbu a1, 0(a0)               # a1 = state.p[i]
+    bgeu a1, t5, invalid_input  # state.p[i] >= 7
+    lbu a1, 7(a0)               # a1 = state.o[i]
+    bgeu a1, t6, invalid_input  # state.o[i] >= 3
+    li t4, 0                    # t4 = j = 0
+parse_state_L1:
+    add t3, t1, t4              # t3 = state.p + j
+    lbu t3, 0(t3)               # t3 = state.p[j]
+    beq t3, a0, invalid_input   # state.p[j] == state.p[i]
+    addi t4, t4, 1              # j++
+    bltu t4, t0, parse_state_L1 # j < i
+    add t2, t2, a1              # sum += state.o[i]
+    addi t0, t0, 1              # i++
+    bltu t0, t5, parse_state_L0 # i < 7
+parse_state_L2:
+    bltu t2, t6, parse_state_L3 # if sum < 3, don't subtract
+    addi t2, t2, -3             # sum -= 3
+    j parse_state_L2
+parse_state_L3:
+    bnez t2, invalid_input      # sum != 0, invalid
     ret
 
 invalid_input:

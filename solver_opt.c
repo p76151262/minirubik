@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "lut.h"
 
-const char state_str[] = "21345671111111";
+const char state_str[] = "123456711111111";
 
 enum { CUBIES = 7, PERMUTATIONS = 5040, ORIENTATIONS = 729, STATES = PERMUTATIONS * ORIENTATIONS, MOVES = 9 };
 
@@ -103,6 +103,27 @@ static int valid(const state_t *state)
     }
 
     return sum == 0;
+}
+
+static int parse_state(const char *input, state_t *state)
+{
+    for (int i = 0; i < 14; i++) {
+        int limit = i < 7 ? 7 : 3;
+        if (input[i] < '1' || input[i] > '0' + limit)
+            return 0;
+
+        *(((uint8_t *) state) + i) = (uint8_t) (input[i] - '1');
+    }
+    return input[14] == '\0' && valid(state);
+}
+
+/* stdout is fully buffered off a terminal, so a write error surfaces at the
+ * flush, not at the printf that queued the bytes. Every exit path that has
+ * produced output goes through here.
+ */
+static int output_failed(void)
+{
+    return fflush(stdout) != 0 || ferror(stdout);
 }
 
 static int dfs(uint16_t p, uint16_t o, uint8_t depth, uint8_t bound, uint8_t last_face)
@@ -210,29 +231,6 @@ next_face:
     next_o = o_stk[depth + 1];
     last_face = depth > 0 ? face_stk[depth - 1] : 0xFF;
     goto resume_turn;
-}
-
-static int parse_state(const char *input, state_t *state)
-{
-    for (int i = 0; i < 14; i++) {
-        int limit = i < 7 ? 7 : 3;
-        if (input[i] < '1' || input[i] > '0' + limit)
-            return 0;
-
-        int state_idx = i >= 7 ? i - 7 : i;
-
-        (i < 7 ? state->p : state->o)[state_idx] = (uint8_t) (input[i] - '1');
-    }
-    return input[14] == '\0' && valid(state);
-}
-
-/* stdout is fully buffered off a terminal, so a write error surfaces at the
- * flush, not at the printf that queued the bytes. Every exit path that has
- * produced output goes through here.
- */
-static int output_failed(void)
-{
-    return fflush(stdout) != 0 || ferror(stdout);
 }
 
 int main(void)
