@@ -6,7 +6,7 @@ RV32_CC ?= riscv64-elf-gcc
 RV32_AS ?= riscv64-elf-as
 RV32_LD ?= riscv64-elf-ld
 RV32_CFLAGS ?= -march=rv32i -mabi=ilp32 -mno-relax -nostdlib
-RIPES ?= ../Ripes-v2.2.6-107-geae84b0-linux-x86_64.AppImage
+RIPES ?= ../../Ripes-v2.2.6-107-geae84b0-linux-x86_64.AppImage
 FRAMA_C ?= frama-c
 CLANG_FORMAT := $(shell command -v clang-format-20 2>/dev/null || \
 	command -v clang-format 2>/dev/null)

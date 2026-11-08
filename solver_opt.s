@@ -428,7 +428,10 @@ idfs_L0:
     sh a0, 0(sp)    # p_stk[0] = start_p
     sh a1, 24(sp)   # o_stk[0] = start_o
     li a3, 0        # a3 = depth = 0
+    li a0, 2        # for idfs_resume_turn & idfs_next_face
 idfs_enter_level:
+    sub a1, a2, a3          # a1 = bound - depth
+    addi a1, a1, -1         # a1 = h_limit = bound - depth - 1
     li t0, 0                # t0 = face = 0
     li t1, 0xFF             # t1 = last_face = 0xFF
     blez a3, idfs_face_loop # branch if depth <= 0
@@ -443,17 +446,13 @@ idfs_face_loop:
     lhu a5, 24(t3)  # a5 = next_o = o_stk[depth]
 
     # calculate next_rank_*[face][0] addresses, store in a6/a7
-    la a6, next_rank_p
-    la a7, next_rank_o
-    beqz t0, idfs_L1    # face == 0, addresses are ok
-    li t2, 10080
-    add a6, a6, t2      # + 5040*2
-    addi a7, a7, 1458   # + 729*2
-    li t3, 1
-    beq t0, t3, idfs_L1 # if face == 1, 1 addition, else 2 additions
-    add a6, a6, t2      # + 5040*2
-    addi a7, a7, 1458   # + 729*2
-idfs_L1:
+    la a6, next_p_face_ptr
+    la a7, next_o_face_ptr
+    slli t2, t0, 2      # t2 = face * 4
+    add a6, a6, t2      # a6 = next_p_face_ptr + face
+    add a7, a7, t2      # a7 = next_o_face_ptr + face
+    lw  a6, 0(a6)       # a6 = next_p_face_ptr[face]
+    lw  a7, 0(a7)       # a7 = next_o_face_ptr[face]
     li t2, 0            # t2 = turn = 0
 idfs_turn_loop:
     slli t3, a4, 1      # t3 = next_p * 2
@@ -464,22 +463,19 @@ idfs_turn_loop:
     lhu a5, 0(t3)       # a5 = next_o = next_rank_o[face][next_o]
 
     # t3 = h = max(h_p[next_p], h_o[next_o])
-    add t3, t5, a4          # t3 = h_p + next_p
-    lbu t3, 0(t3)           # t3 = h_p[next_p]
-    add t4, t6, a5          # t4 = h_o + next_o
-    lbu t4, 0(t4)           # t4 = h_o[next_o]
-    bgeu t3, t4, idfs_L2    # if t3 >= t4, ok
-    mv t3, t4               # otherwise swap
-idfs_L2:
-    add t3, t3, a3                  # t3 = h + depth
-    addi t3, t3, 1                  # t3 = depth + 1 + h
-    bgtu t3, a2, idfs_resume_turn   # pruning 1: depth + 1 + h <= bound
+    add t3, t5, a4                  # t3 = h_p + next_p
+    lbu t3, 0(t3)                   # t3 = h_p[next_p]
+    bgtu t3, a1, idfs_resume_turn   # h_p > bound - depth - 1, pruning 1
+    add t4, t6, a5                  # t4 = h_o + next_o
+    lbu t4, 0(t4)                   # t4 = h_o[next_o]
+    bgtu t4, a1, idfs_resume_turn   # h_o > bound - depth - 1, pruning 1
+
     add t3, sp, a3                  # t3 = sp + depth
     sb t0, 48(t3)                   # face_stk[depth] = face
     sb t2, 60(t3)                   # turn_stk[depth] = turn
 
     or t3, a4, a5           # if (next_p == 0 && next_o == 0) is ture -> solution found
-    bnez t3, idfs_L3        # branch if solution not found
+    bnez t3, idfs_L1        # branch if solution not found
     addi t3, t3, 0          # i = 0
     # t6 was h_o, however, since solution found, can be safely overwritten
     la t6, solution_path
@@ -504,7 +500,7 @@ idfs_sol_loop:
     addi sp, sp, 80
     li a0, 1                    # return 1
     ret
-idfs_L3:
+idfs_L1:
     # solution not found yet
     # 0(sp) - 23(sp): p_stk
     # 24(sp) - 47(sp): o_stk
@@ -518,15 +514,14 @@ idfs_L3:
     j idfs_enter_level
 idfs_resume_turn:
     addi t2, t2, 1              # ++turn
-    li t3, 2                    # t3 = 2
-    bleu t2, t3, idfs_turn_loop # if turn <= 2, branch
+    bleu t2, a0, idfs_turn_loop # if turn <= 2, branch
 idfs_next_face:
     addi t0, t0, 1              # ++face
-    li t3, 2                    # t3 = 2
-    bleu t0, t3, idfs_face_loop # if face <=2, branch
+    bleu t0, a0, idfs_face_loop # if face <=2, branch
 
     addi a3, a3, -1                     # --depth
     blt a3, zero, idfs_search_failed    # if depth < 0, return 0
+    addi a1, a1, 1                      # h_limit + 1 since depth decreased by 1
 
     # 0(sp) - 23(sp): p_stk
     # 24(sp) - 47(sp): o_stk
@@ -546,18 +541,14 @@ idfs_next_face:
     add t3, sp, t3  # t3 = sp + 24 + (depth + 1) * 2 = o_stk + (depth + 1) * 2
     lhu a5, 0(t3)   # a5 = next_o = o_stk[depth + 1]
 
-    la a6, next_rank_p
-    la a7, next_rank_o
-    beqz t0, idfs_L4
-    li t4, 10080
-    add a6, a6, t4
-    addi a7, a7, 1458
-    li t4, 1
-    beq t0, t4, idfs_L4
-    li t4, 10080
-    add a6, a6, t4
-    addi a7, a7, 1458
-idfs_L4:
+    la a6, next_p_face_ptr
+    la a7, next_o_face_ptr
+    slli t4, t0, 2              # t4 = face * 4
+    add a6, a6, t4              # a6 = next_p_face_ptr + face
+    add a7, a7, t4              # a7 = next_o_face_ptr + face
+    lw  a6, 0(a6)               # a6 = next_p_face_ptr[face]
+    lw  a7, 0(a7)               # a7 = next_o_face_ptr[face]
+
     li t1, 0xFF                 # t1 = last_face = 0xFF
     blez a3, idfs_resume_turn   # if depth <= 0, b, then last_face = 0xFF
     addi t3, a3, -1

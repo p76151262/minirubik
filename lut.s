@@ -1,5 +1,17 @@
 .data
 
+.globl next_p_face_ptr
+next_p_face_ptr:
+    .word next_rank_p_f0
+    .word next_rank_p_f1
+    .word next_rank_p_f2
+
+.globl next_o_face_ptr
+next_o_face_ptr:
+    .word next_rank_o_f0
+    .word next_rank_o_f1
+    .word next_rank_o_f2
+
 .globl next_rank_p
 next_rank_p:
 next_rank_p_f0:
